@@ -8,7 +8,7 @@ RUN \
         openssl-dev curl-dev boost-dev linux-headers \
         bsd-compat-headers m4 paxmark && \
     apk add --update \
-        -X http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+        -X http://dl-cdn.alpinelinux.org/alpine/edge/main \
         libexecinfo-dev
 
 RUN \

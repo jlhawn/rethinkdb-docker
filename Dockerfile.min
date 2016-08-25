@@ -4,7 +4,7 @@ RUN \
     apk add --update \
         ca-certificates libstdc++ libgcc libcurl protobuf && \
     apk add --update \
-        -X http://dl-cdn.alpinelinux.org/alpine/edge/testing \ 
+        -X http://dl-cdn.alpinelinux.org/alpine/edge/main \ 
         libexecinfo
 
 COPY rethinkdb /usr/local/bin/rethinkdb
