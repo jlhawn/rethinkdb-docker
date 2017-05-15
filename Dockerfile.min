@@ -1,11 +1,8 @@
-FROM alpine:3.4
+FROM alpine:3.5
 
 RUN \
     apk add --update \
-        ca-certificates libstdc++ libgcc libcurl protobuf && \
-    apk add --update \
-        -X http://dl-cdn.alpinelinux.org/alpine/edge/main \ 
-        libexecinfo
+        ca-certificates libstdc++ libgcc libcurl protobuf libexecinfo
 
 COPY rethinkdb /usr/local/bin/rethinkdb
 

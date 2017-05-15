@@ -1,15 +1,12 @@
-FROM alpine:3.4
+FROM alpine:3.5
 
 ARG VERSION=2.3.5
 
 RUN \
     apk add --update \
         alpine-sdk bash python perl protobuf-dev icu-dev \
-        openssl-dev curl-dev boost-dev linux-headers \
-        bsd-compat-headers m4 paxmark && \
-    apk add --update \
-        -X http://dl-cdn.alpinelinux.org/alpine/edge/main \
-        libexecinfo-dev
+        libressl-dev curl-dev boost-dev linux-headers \
+        bsd-compat-headers m4 paxmark libexecinfo-dev
 
 RUN \
     wget https://download.rethinkdb.com/dist/rethinkdb-$VERSION.tgz && \
@@ -17,16 +14,22 @@ RUN \
     tar xvf rethinkdb-$VERSION.tar && \
     rm rethinkdb-$VERSION.tar
 
+
+COPY libressl.patch ./rethinkdb-$VERSION/libressl.patch
+
 RUN \
     cd rethinkdb-$VERSION && \
+    patch -p1 < libressl.patch && \
     ./configure \
         --prefix=/usr \
         --sysconfdir=/etc \
         --localstatedir=/var \
-        --fetch v8 \
         --dynamic all \
-        --with-system-malloc \
-        LDFLAGS=-lexecinfo && \
+        --with-system-malloc && \
+    export LDFLAGS="$LDFLAGS -lexecinfo" && \
+    export CXXFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks" && \
+    make --jobs $(grep -c '^processor' /proc/cpuinfo) SPLIT_SYMBOLS=1 || \
+    paxmark -m build/external/v8_3.30.33.16/build/out/x64.release/mksnapshot && \
     make --jobs $(grep -c '^processor' /proc/cpuinfo) SPLIT_SYMBOLS=1 && \
     mv build/release_system/rethinkdb /usr/local/bin/
 
