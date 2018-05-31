@@ -1,6 +1,9 @@
-FROM alpine:3.5
+FROM alpine:latest AS builder
 
-ARG VERSION=2.3.5
+ARG VERSION=2.3.6
+
+# Also: ppc64le, s390x
+ARG CARCH=x86_64
 
 RUN \
     apk add --update \
@@ -14,12 +17,24 @@ RUN \
     tar xvf rethinkdb-$VERSION.tar && \
     rm rethinkdb-$VERSION.tar
 
+COPY *.patch ./rethinkdb-$VERSION/
 
-COPY libressl.patch ./rethinkdb-$VERSION/libressl.patch
+ARG PATCHES="enable-build-ppc64le.patch \
+    enable-build-s390x.patch \
+    extproc-js-all.patch \
+    libressl-all.patch \
+    paxmark-x86_64.patch"
+
+RUN cd rethinkdb-$VERSION && \
+    for i in $PATCHES; do \
+        case $i in \
+        *-$CARCH.patch|*-all.patch) \
+            echo $i; patch -p1 < "$i"; \
+        esac; \
+    done
 
 RUN \
     cd rethinkdb-$VERSION && \
-    patch -p1 < libressl.patch && \
     ./configure \
         --prefix=/usr \
         --sysconfdir=/etc \
@@ -32,5 +47,13 @@ RUN \
     paxmark -m build/external/v8_3.30.33.16/build/out/x64.release/mksnapshot && \
     make --jobs $(grep -c '^processor' /proc/cpuinfo) SPLIT_SYMBOLS=1 && \
     mv build/release_system/rethinkdb /usr/local/bin/
+
+FROM alpine:latest
+
+RUN \
+    apk add --update \
+        ca-certificates libstdc++ libgcc libcurl protobuf libexecinfo
+
+COPY --from=builder /usr/local/bin/rethinkdb /usr/local/bin/rethinkdb
 
 ENTRYPOINT ["rethinkdb"]
