@@ -1,4 +1,4 @@
-FROM alpine:latest AS builder
+FROM alpine:3.9 AS builder
 
 ARG VERSION=2.3.6
 
@@ -23,6 +23,7 @@ ARG PATCHES="enable-build-ppc64le.patch \
     enable-build-s390x.patch \
     extproc-js-all.patch \
     libressl-all.patch \
+    openssl-1.1-all.patch \
     paxmark-x86_64.patch"
 
 RUN cd rethinkdb-$VERSION && \
