@@ -1,4 +1,4 @@
-FROM alpine:3.9 AS builder
+FROM alpine:3.10 AS builder
 
 ARG VERSION=2.3.6
 
@@ -19,12 +19,12 @@ RUN \
 
 COPY *.patch ./rethinkdb-$VERSION/
 
-ARG PATCHES="enable-build-ppc64le.patch \
-    enable-build-s390x.patch \
-    extproc-js-all.patch \
-    libressl-all.patch \
+ARG PATCHES="libressl-all.patch \
     openssl-1.1-all.patch \
-    paxmark-x86_64.patch"
+    enable-build-ppc64le.patch \
+    enable-build-s390x.patch \
+    paxmark-x86_64.patch \
+    extproc-js-all.patch"
 
 RUN cd rethinkdb-$VERSION && \
     for i in $PATCHES; do \
@@ -43,7 +43,7 @@ RUN \
         --dynamic all \
         --with-system-malloc && \
     export LDFLAGS="$LDFLAGS -lexecinfo" && \
-    export CXXFLAGS="$CXXFLAGS -fno-delete-null-pointer-checks" && \
+    export CXXFLAGS="$CXXFLAGS -DBOOST_NO_CXX11_EXPLICIT_CONVERSION_OPERATORS -fno-delete-null-pointer-checks" && \
     make --jobs $(grep -c '^processor' /proc/cpuinfo) SPLIT_SYMBOLS=1 || \
     paxmark -m build/external/v8_3.30.33.16/build/out/x64.release/mksnapshot && \
     make --jobs $(grep -c '^processor' /proc/cpuinfo) SPLIT_SYMBOLS=1 && \

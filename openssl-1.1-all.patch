@@ -22,7 +22,7 @@ index 4b9c4299f06..ccce61ca297 100644
 +++ b/src/client_protocol/server.cc
 @@ -174,12 +174,13 @@ void http_conn_cache_t::on_ring() {
  }
-
+ 
  size_t http_conn_cache_t::sha_hasher_t::operator()(const conn_key_t &x) const {
 -    EVP_MD_CTX c;
 -    EVP_DigestInit(&c, EVP_sha256());
@@ -44,7 +44,7 @@ index 1f3c5c7a85f..383d040f55c 100644
 +++ b/src/rdb_protocol/geo/s2/util/math/exactfloat/exactfloat.cc
 @@ -60,7 +60,7 @@ bool bn_is_negative_func(const BIGNUM* bn) {
  }
-
+ 
  // Set a BIGNUM to the given unsigned 64-bit value.
 -inline static void BN_ext_set_uint64(BIGNUM* bn, uint64 v) {
 +void BN_ext_set_uint64(BIGNUM* bn, uint64 v) {
@@ -52,7 +52,7 @@ index 1f3c5c7a85f..383d040f55c 100644
    CHECK(BN_set_word(bn, v));
  #else
 @@ -73,39 +73,38 @@ inline static void BN_ext_set_uint64(BIGNUM* bn, uint64 v) {
-
+ 
  // Return the absolute value of a BIGNUM as a 64-bit unsigned integer.
  // Requires that BIGNUM fits into 64 bits.
 -inline static uint64 BN_ext_get_uint64(const BIGNUM* bn) {
@@ -82,7 +82,7 @@ index 1f3c5c7a85f..383d040f55c 100644
 +
 +  return ret;
  }
-
+ 
  // Count the number of low-order zero bits in the given BIGNUM (ignoring its
  // sign).  Returns 0 if the argument is zero.
 -static int BN_ext_count_low_zero_bits(const BIGNUM* bn) {
@@ -108,7 +108,7 @@ index 1f3c5c7a85f..383d040f55c 100644
 +  // zero in any case.
 +  return 0;
  }
-
+ 
 -ExactFloat::ExactFloat(double v) {
 -  BN_init(&bn_);
 +ExactFloat::ExactFloat(double v) : bn_(make_BN_new()) {
@@ -125,7 +125,7 @@ index 1f3c5c7a85f..383d040f55c 100644
      Canonicalize();
    }
  }
-
+ 
 -ExactFloat::ExactFloat(int v) {
 -  BN_init(&bn_);
 +ExactFloat::ExactFloat(int v) : bn_(make_BN_new()) {
@@ -137,7 +137,7 @@ index 1f3c5c7a85f..383d040f55c 100644
    bn_exp_ = 0;
    Canonicalize();
  }
-
+ 
  ExactFloat::ExactFloat(const ExactFloat& b)
      : sign_(b.sign_),
 -      bn_exp_(b.bn_exp_) {
@@ -147,47 +147,47 @@ index 1f3c5c7a85f..383d040f55c 100644
 +      bn_(make_BN_new()) {
 +  BN_copy(bn_.get(), b.bn_.get());
  }
-
+ 
  ExactFloat ExactFloat::SignedZero(int sign) {
 @@ -163,30 +161,30 @@ ExactFloat ExactFloat::NaN() {
  }
-
+ 
  int ExactFloat::prec() const {
 -  return BN_num_bits(&bn_);
 +  return BN_num_bits(bn_.get());
  }
-
+ 
  int ExactFloat::exp() const {
    DCHECK(is_normal());
 -  return bn_exp_ + BN_num_bits(&bn_);
 +  return bn_exp_ + BN_num_bits(bn_.get());
  }
-
+ 
  void ExactFloat::set_zero(int sign) {
    sign_ = sign;
    bn_exp_ = kExpZero;
 -  if (!BN_is_zero(&bn_)) BN_zero(&bn_);
 +  if (!BN_is_zero(bn_.get())) BN_zero(bn_.get());
  }
-
+ 
  void ExactFloat::set_inf(int sign) {
    sign_ = sign;
    bn_exp_ = kExpInfinity;
 -  if (!BN_is_zero(&bn_)) BN_zero(&bn_);
 +  if (!BN_is_zero(bn_.get())) BN_zero(bn_.get());
  }
-
+ 
  void ExactFloat::set_nan() {
    sign_ = 1;
    bn_exp_ = kExpNaN;
 -  if (!BN_is_zero(&bn_)) BN_zero(&bn_);
 +  if (!BN_is_zero(bn_.get())) BN_zero(bn_.get());
  }
-
+ 
  double ExactFloat::ToDouble() const {
 @@ -200,13 +198,13 @@ double ExactFloat::ToDouble() const {
  }
-
+ 
  double ExactFloat::ToDoubleHelper() const {
 -  DCHECK_LE(BN_num_bits(&bn_), kDoubleMantissaBits);
 +  DCHECK_LE(BN_num_bits(bn_.get()), kDoubleMantissaBits);
@@ -327,13 +327,13 @@ index 1f3c5c7a85f..383d040f55c 100644
    r.Canonicalize();
    return r;
 @@ -594,14 +592,14 @@ bool operator==(const ExactFloat& a, const ExactFloat& b) {
-
+ 
    // Otherwise, the signs and mantissas must match.  Note that non-normal
    // values such as infinity have a mantissa of zero.
 -  return a.sign_ == b.sign_ && BN_ucmp(&a.bn_, &b.bn_) == 0;
 +  return a.sign_ == b.sign_ && BN_ucmp(a.bn_.get(), b.bn_.get()) == 0;
  }
-
+ 
  int ExactFloat::ScaleAndCompare(const ExactFloat& b) const {
    DCHECK(is_normal() && b.is_normal() && bn_exp_ >= b.bn_exp_);
    ExactFloat tmp = *this;
@@ -342,7 +342,7 @@ index 1f3c5c7a85f..383d040f55c 100644
 +  CHECK(BN_lshift(tmp.bn_.get(), tmp.bn_.get(), bn_exp_ - b.bn_exp_));
 +  return BN_ucmp(tmp.bn_.get(), b.bn_.get());
  }
-
+ 
  bool ExactFloat::UnsignedLess(const ExactFloat& b) const {
 @@ -692,7 +690,7 @@ T ExactFloat::ToInteger(RoundingMode mode) const {
    if (!r.is_inf()) {
@@ -358,20 +358,20 @@ index b91290799c6..2c472778fda 100644
 --- a/src/rdb_protocol/geo/s2/util/math/exactfloat/exactfloat.h
 +++ b/src/rdb_protocol/geo/s2/util/math/exactfloat/exactfloat.h
 @@ -96,8 +96,9 @@
-
+ 
  #include <math.h>
  #include <limits.h>
 -#include <iostream>
-
+ 
 +#include <iostream>
 +#include <memory>
  #include <string>
-
+ 
  #include <openssl/bn.h>
 @@ -107,6 +108,10 @@
-
+ 
  namespace geo {
-
+ 
 +struct BIGNUM_deleter {
 +  void operator()(BIGNUM *b) { BN_free(b); }
 +};
@@ -385,13 +385,13 @@ index b91290799c6..2c472778fda 100644
    int32 bn_exp_;
 -  BIGNUM bn_;
 +  std::unique_ptr<BIGNUM, BIGNUM_deleter> bn_;
-
+ 
    // A standard IEEE "double" has a 53-bit mantissa consisting of a 52-bit
    // fraction plus an implicit leading "1" bit.
 @@ -555,16 +560,18 @@ class ExactFloat {
    static ExactFloat Unimplemented();
  };
-
+ 
 +inline std::unique_ptr<BIGNUM, BIGNUM_deleter> make_BN_new() {
 +  std::unique_ptr<BIGNUM, BIGNUM_deleter> ret(BN_new(), BIGNUM_deleter{});
 +  guarantee(ret.get() != nullptr);
@@ -400,29 +400,29 @@ index b91290799c6..2c472778fda 100644
 +
  /////////////////////////////////////////////////////////////////////////
  // Implementation details follow:
-
+ 
 -inline ExactFloat::ExactFloat() : sign_(1), bn_exp_(kExpZero) {
 -  BN_init(&bn_);
 -}
 +inline ExactFloat::ExactFloat() : sign_(1), bn_exp_(kExpZero), bn_(make_BN_new()) {}
-
+ 
 -inline ExactFloat::~ExactFloat() {
 -  BN_free(&bn_);
 -}
 +inline ExactFloat::~ExactFloat() {}
-
+ 
  inline bool ExactFloat::is_zero() const { return bn_exp_ == kExpZero; }
  inline bool ExactFloat::is_inf() const { return bn_exp_ == kExpInfinity; }
 @@ -601,6 +608,10 @@ inline ExactFloat ExactFloat::CopyWithSign(int sign) const {
    return r;
  }
-
+ 
 +void BN_ext_set_uint64(BIGNUM *bn, uint64 v);
 +uint64 BN_ext_get_uint64(const BIGNUM *bn);
 +int BN_ext_count_low_zero_bits(const BIGNUM *bn);
 +
  }  // namespace geo
-
+ 
  #endif  // UTIL_MATH_EXACTFLOAT_EXACTFLOAT_H_
 diff --git a/src/unittest/bignum_test.cc b/src/unittest/bignum_test.cc
 new file mode 100644
