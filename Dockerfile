@@ -1,4 +1,4 @@
-FROM alpine:3.10 AS builder
+FROM alpine:3.8 AS builder
 
 ARG VERSION=2.3.6
 
@@ -49,7 +49,7 @@ RUN \
     make --jobs $(grep -c '^processor' /proc/cpuinfo) SPLIT_SYMBOLS=1 && \
     mv build/release_system/rethinkdb /usr/local/bin/
 
-FROM alpine:latest
+FROM alpine:3.8
 
 RUN \
     apk add --update \
